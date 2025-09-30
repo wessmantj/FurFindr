@@ -18,6 +18,7 @@ def test_endpoints():
     print("TEST 2: Fetching dog breeds...")
     breeds_data = client.get_breeds('dog')
     breeds = breeds_data.get('breeds', [])
+    print(f"✅ Found {len(breeds)} dog breeds:")
     for b in breeds[:10]:  # Show first 10
         print(f"  - {b['name']}")
     
