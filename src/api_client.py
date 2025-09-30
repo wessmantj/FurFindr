@@ -23,12 +23,30 @@ class PetfinderClient:
         response.raise_for_status()
         return response.json()['access_token']
     
-    def get_animals(self, location, animal_type=None, limit=20):
-        """Fetch animals from Petfinder API"""
+    def get_types(self):
+        """Get all animal types (dog, cat, etc.)"""
+        headers = {'Authorization': f'Bearer {self.token}'}
+        response = requests.get(f"{self.base_url}/types", headers=headers)
+        response.raise_for_status()
+        return response.json()
+    
+    def get_breeds(self, animal_type):
+        """Get breeds for a specific animal type"""
+        headers = {'Authorization': f'Bearer {self.token}'}
+        response = requests.get(
+            f"{self.base_url}/types/{animal_type}/breeds",
+            headers=headers
+        )
+        response.raise_for_status()
+        return response.json()
+    
+    def get_animals(self, location, animal_type=None, limit=20, page=1):
+        """Fetch animals from Petfinder API with pagination"""
         headers = {'Authorization': f'Bearer {self.token}'}
         params = {
             'location': location,
-            'limit': limit
+            'limit': limit,
+            'page': page
         }
         if animal_type:
             params['type'] = animal_type
@@ -37,6 +55,16 @@ class PetfinderClient:
             f"{self.base_url}/animals",
             headers=headers,
             params=params
+        )
+        response.raise_for_status()
+        return response.json()
+    
+    def get_organization(self, org_id):
+        """Get details for a specific organization"""
+        headers = {'Authorization': f'Bearer {self.token}'}
+        response = requests.get(
+            f"{self.base_url}/organizations/{org_id}",
+            headers=headers
         )
         response.raise_for_status()
         return response.json()
