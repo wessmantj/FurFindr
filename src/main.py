@@ -1,4 +1,4 @@
-from api_client import PetfinderClient
+from src.api_client import PetfinderClient
 
 def main():
     print("Testing Petfinder API connection...")

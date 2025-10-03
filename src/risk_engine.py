@@ -3,7 +3,7 @@ Retention-Risk Engine
 Evaluates adopter-pet compatibility based on research-backed friction patterns
 """
 
-from db_helper import DatabaseHelper
+from .db_helper import DatabaseHelper
 
 
 # Breed classification lists (keywords to search for)
@@ -430,7 +430,7 @@ def print_risk_report(result):
 
 
 if __name__ == "__main__":
-    from adopter_profile import SAMPLE_PROFILES
+    from .adopter_profile import SAMPLE_PROFILES
     
     print("RETENTION-RISK ENGINE TEST\n")
     
