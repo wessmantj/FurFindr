@@ -286,6 +286,48 @@ if pets:
                         st.write("---")
 else:
     st.info("No pets match your filters. Try adjusting your search criteria.")
+    
+# Adoption Support Section
+st.header("📋 Post-Adoption Support")
+
+col1, col2 = st.columns(2)
+
+with col1:
+    st.subheader("First-Week Checklist")
+    st.write("Prepare for a successful start with your new pet!")
+    
+    pet_name_input = st.text_input("Pet's name (optional)", value="Your New Pet")
+    pet_type_input = st.selectbox("Pet type", ["Dog", "Cat", "Other"])
+    
+    if st.button("📥 Generate Checklist PDF"):
+        from src.adoption_checklist import generate_checklist_pdf
+        
+        with st.spinner("Generating your personalized checklist..."):
+            pdf_path = generate_checklist_pdf(
+                pet_name=pet_name_input,
+                pet_type=pet_type_input,
+                output_path=f"checklist_{pet_name_input.replace(' ', '_')}.pdf"
+            )
+            
+            with open(pdf_path, "rb") as file:
+                st.download_button(
+                    label="⬇️ Download Checklist",
+                    data=file,
+                    file_name=f"{pet_name_input}_FirstWeek_Checklist.pdf",
+                    mime="application/pdf"
+                )
+            
+            st.success("✅ Checklist ready! Click above to download.")
+
+with col2:
+    st.subheader("Need Help?")
+    st.write("Common resources for new pet parents:")
+    st.markdown("""
+    - **Training:** ASPCA Virtual Behaviorist
+    - **Vet Questions:** AskVet, Vetster (telehealth)
+    - **Behavior Issues:** Find a CAAB certified behaviorist
+    - **Community:** Join local pet parent groups
+    """)
 
 # Comparison feature
 st.header("⚖️ Compare Two Pets")
@@ -365,3 +407,38 @@ if pets and len(pets) >= 2:
             st.info(f"Both pets have similar compatibility scores. Review individual concerns above.")
 else:
     st.info("Need at least 2 pets to compare. Adjust your filters if needed.")
+
+# Save search feature in sidebar
+st.sidebar.write("---")
+st.sidebar.subheader("💾 Save This Search")
+
+with st.sidebar.form("save_search_form"):
+    search_name = st.text_input("Search name", placeholder="e.g., 'My ideal dog'")
+    search_email = st.text_input("Email for alerts", placeholder="your@email.com")
+    
+    save_button = st.form_submit_button("💾 Save & Get Alerts")
+    
+    if save_button:
+        if not search_name or not search_email:
+            st.error("Please provide both name and email")
+        else:
+            from src.saved_search_helper import save_search
+            
+            # Get current filters
+            current_filters = {
+                'species': st.session_state.get('species_filter', 'All'),
+                'age': st.session_state.get('age_filter', 'All'),
+                'size': st.session_state.get('size_filter', 'All'),
+                'gender': st.session_state.get('gender_filter', 'All')
+            }
+            
+            try:
+                search_id = save_search(
+                    email=search_email,
+                    name=search_name,
+                    adopter_profile=st.session_state.adopter_profile,
+                    filters=current_filters
+                )
+                st.success(f"✅ Search saved! You'll receive daily email updates.")
+            except Exception as e:
+                st.error(f"Error saving search: {e}")
