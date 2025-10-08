@@ -14,6 +14,7 @@ from src.risk_engine import calculate_risk, rule_trigger_log, get_rule_trigger_s
 from src.adopter_profile import create_adopter_profile
 
 # Initialize database helper
+
 db_helper = DatabaseHelper()
 count = db_helper.get_animal_count()
 
@@ -189,7 +190,8 @@ def display_pet_card(pet):
         # Pet name and risk badge
         col1, col2 = st.columns([3, 1])
         with col1:
-            st.markdown(f"<h2 style='margin: 0; color: #1f2937;'>{pet['name']}</h2>", unsafe_allow_html=True)
+            # Make pet name highly visible
+            st.markdown(f"<h2 style='margin: 0; color: #0b84ff; text-shadow: 0 1px 0 rgba(0,0,0,0.05);'>{pet['name']}</h2>", unsafe_allow_html=True)
         with col2:
             st.markdown(f"""
             <div style="
@@ -252,17 +254,17 @@ def show_tutorial():
     
     1. **Create Your Profile** - Fill out the sidebar to help us understand your household
     2. **Browse Pets** - Swipe through pets sorted by compatibility (best matches first)
-    3. **Take Action** - Use the buttons below each pet:
+    3. **Take Action** - Use the buttons below each pet card to:
        - 🐾 **Adopt** - Save pets you're interested in
        - ❌ **Pass** - Skip pets that aren't a good fit
-       - ↩️ **Undo** - Change your mind (until next action)
+       - ↩️ **Undo** - Change your mind and return to previous pet
     4. **Review Favorites** - Check your saved pets in the sidebar
     
-    **The Risk Assessment** is our key feature - it helps identify potential challenges before adoption, 
+    **The Risk Assessment** - it helps identify potential challenges before adoption, 
     giving you the best chance for a successful, long-term match!
     """)
     
-    if st.button("Got it! Let's start browsing", type="primary"):
+    if st.button("Lets Start!", type="primary"):
         st.session_state.tutorial_completed = True
         st.rerun()
 
@@ -290,7 +292,7 @@ def load_metrics_data():
 def show_metrics_dashboard(df, searches_count, adopter_profile=None):
     """Display metrics dashboard"""
     st.markdown("---")
-    st.subheader("📊 Adoption Inventory Insights")
+    st.subheader("📊 Adoption Inventory Insight")
     
     col1, col2, col3, col4 = st.columns(4)
     
@@ -328,14 +330,14 @@ def show_metrics_dashboard(df, searches_count, adopter_profile=None):
         col1, col2 = st.columns(2)
         
         with col1:
-            st.subheader("🐾 By Species")
+            st.subheader("By Species 🐶🐱")
             species_counts = df['species'].value_counts()
             for species, count in species_counts.items():
                 pct = (count / total * 100)
                 st.write(f"**{species}:** {count} ({pct:.1f}%)")
         
         with col2:
-            st.subheader("📅 By Age")
+            st.subheader("By Age 📅")
             age_counts = df['age'].value_counts()
             for age, count in age_counts.items():
                 pct = (count / total * 100)
@@ -343,7 +345,7 @@ def show_metrics_dashboard(df, searches_count, adopter_profile=None):
         
         # Size distribution
         if 'size' in df.columns:
-            st.subheader("📏 By Size")
+            st.subheader("By Size 📏")
             size_counts = df['size'].value_counts()
             for size, count in size_counts.items():
                 pct = (count / total * 100)
@@ -352,7 +354,7 @@ def show_metrics_dashboard(df, searches_count, adopter_profile=None):
     # Personalized insights based on adopter profile
     if adopter_profile:
         st.markdown("---")
-        st.subheader("🎯 Personalized Insights")
+        st.subheader("Personalized Insights 🎯")
         
         # Calculate compatibility for all pets
         compatible_pets = []
@@ -400,7 +402,7 @@ def show_rule_analytics():
         return
     
     st.markdown("---")
-    st.subheader("🎯 Most Common Risk Factors")
+    st.subheader("Most Common Risk Factors ⚠️")
     
     # Count rule triggers
     rule_counts = {}
@@ -462,12 +464,12 @@ def show_data_confidence_badge(confidence):
     elif confidence == 'medium':
         st.warning("⚠ Partial Profile")
     else:
-        st.info("📋 Limited Data - Visit shelter for details")
+        st.info("Limited Data - Visit shelter for details")
 
 st.set_page_config(page_title="FurFinder - Your Smart Matched Pet Adoption", layout="wide")
 
 # Main title
-st.title("🐾 FurFinder")
+st.title("FurFinder 🐾")
 st.subheader("Find your perfect pet match with smart compatibility assessment")
 
 # Check if user needs tutorial
@@ -491,7 +493,7 @@ with st.sidebar.form("adopter_profile_form"):
     
     
     exercise_time = st.slider(
-        "Daily exercise time (minutes)",
+        "Daily play time (minutes)",
         min_value=0,
         max_value=120,
         value=30,
@@ -525,7 +527,7 @@ with st.sidebar.form("adopter_profile_form"):
     
     home_type = st.selectbox(
         "Home type",
-        ["apartment", "townhouse", "house"]
+        ["apartment", "townhouse", "house", "condo"]
     )
     
     yard_size = st.selectbox(
@@ -584,21 +586,24 @@ if submit:
 
 # Favorites section in sidebar
 st.sidebar.markdown("---")
-st.sidebar.header("💖 Your Favorites")
+st.sidebar.header("Your Favorites 💖")
 
 if st.session_state.liked_pets:
     st.sidebar.write(f"You've liked {len(st.session_state.liked_pets)} pets:")
-    
+
     for i, pet in enumerate(st.session_state.liked_pets[-5:]):  # Show last 5
-        with st.sidebar.expander(f"{pet['name']} ({pet['breed']})"):
+        # Expander label does not support raw HTML, so use a generic label and render styled name inside
+        with st.sidebar.expander("Favorite pet"):
+            st.markdown(f"<div style='font-size:16px; font-weight:700; color:#0b84ff'>{pet['name']}</div>", unsafe_allow_html=True)
+            st.write(f"({pet['breed']})")
             st.write(f"**Risk Level:** {pet['risk_result']['risk_level']}")
             st.write(f"**Compatibility:** {100 - pet['risk_result']['risk_score']}/100")
             st.write(f"**Age:** {pet['age']} • **Size:** {pet['size']}")
-            
+
             if pet['risk_result']['triggered_rules']:
                 st.write(f"**Concerns:** {len(pet['risk_result']['triggered_rules'])}")
             else:
-                st.success("✅ Great match!")
+                st.success("Great match!")
     
     if len(st.session_state.liked_pets) > 5:
         st.sidebar.caption(f"... and {len(st.session_state.liked_pets) - 5} more")
@@ -766,12 +771,12 @@ if current_pet:
     col1, col2, col3, col4, col5 = st.columns([1, 2, 1, 2, 1])
     
     with col2:
-        if st.button("❌ Pass", type="secondary", use_container_width=True):
+        if st.button("Pass ❌", type="secondary", use_container_width=True):
             pass_pet(current_pet)
             st.rerun()
     
     with col4:
-        if st.button("🐾 Adopt", type="primary", use_container_width=True):
+        if st.button("Adopt 💖", type="primary", use_container_width=True):
             like_pet(current_pet)
             st.rerun()
     
@@ -780,7 +785,7 @@ if current_pet:
         st.markdown("---")
         col1, col2, col3 = st.columns([1, 1, 1])
         with col2:
-            if st.button("↩️ Undo Last Action", type="secondary"):
+            if st.button("Undo Last Action ↩️", type="secondary"):
                 undo_last_action()
                 st.rerun()
     
