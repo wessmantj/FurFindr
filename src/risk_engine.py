@@ -3,7 +3,41 @@ Retention-Risk Engine
 Evaluates adopter-pet compatibility based on research-backed friction patterns
 """
 
+import json
+from datetime import datetime
 from .db_helper import DatabaseHelper
+
+# Global rule trigger log for analytics (no PII)
+rule_trigger_log = []
+
+def log_rule_trigger(rule_name: str):
+    """Log which rules are triggered (no PII)"""
+    rule_trigger_log.append({
+        'rule': rule_name,
+        'timestamp': datetime.now().isoformat()
+    })
+
+def get_rule_trigger_stats():
+    """Get statistics about rule triggers"""
+    if not rule_trigger_log:
+        return {}
+    
+    rule_counts = {}
+    for entry in rule_trigger_log:
+        rule_name = entry['rule']
+        rule_counts[rule_name] = rule_counts.get(rule_name, 0) + 1
+    
+    return {
+        'total_triggers': len(rule_trigger_log),
+        'unique_rules': len(rule_counts),
+        'rule_frequency': rule_counts,
+        'most_triggered': max(rule_counts.items(), key=lambda x: x[1]) if rule_counts else None
+    }
+
+def clear_rule_log():
+    """Clear the rule trigger log"""
+    global rule_trigger_log
+    rule_trigger_log = []
 
 
 # Breed classification lists (keywords to search for)
@@ -138,6 +172,7 @@ def calculate_risk(adopter_profile, pet_data):
     
     # Rule 1: First-Time Owner + High-Energy Pet
     if adopter_profile.get('experience_level') == 'first_time' and is_high_energy(pet_data):
+        log_rule_trigger('first_time_high_energy')
         total_score += 25
         triggered_rules.append({
             'rule_name': 'First-Time Owner + High-Energy Pet',
@@ -157,6 +192,7 @@ def calculate_risk(adopter_profile, pet_data):
         pet_data.get('age') in ['Baby', 'Young'] and
         pet_data.get('size') in ['Large', 'Extra Large']):
         
+        log_rule_trigger('young_children_large_dog')
         total_score += 40
         triggered_rules.append({
             'rule_name': 'Young Children + Large Adolescent Dog',
@@ -174,6 +210,7 @@ def calculate_risk(adopter_profile, pet_data):
     if (adopter_profile.get('daily_exercise_minutes', 0) < 30 and 
         is_working_herding_breed(pet_data)):
         
+        log_rule_trigger('limited_exercise_working_breed')
         total_score += 35
         triggered_rules.append({
             'rule_name': 'Limited Exercise Time + Working/Herding Breed',
@@ -192,6 +229,7 @@ def calculate_risk(adopter_profile, pet_data):
         adopter_profile.get('noise_tolerance') == 'low' and
         is_vocal_breed(pet_data)):
         
+        log_rule_trigger('apartment_vocal_breed')
         total_score += 20
         triggered_rules.append({
             'rule_name': 'Apartment Living + Very Vocal Breed',
@@ -210,6 +248,7 @@ def calculate_risk(adopter_profile, pet_data):
     if (adopter_profile.get('allergies') in ['mild', 'moderate', 'severe'] and
         is_heavy_shedder(pet_data)):
         
+        log_rule_trigger('allergies_heavy_shedding')
         total_score += 30
         triggered_rules.append({
             'rule_name': 'Allergies + Heavy Shedding Breed',
@@ -230,6 +269,7 @@ def calculate_risk(adopter_profile, pet_data):
         pet_data.get('size') in ['Large', 'Extra Large'] and
         pet_data.get('age') in ['Baby', 'Young']):
         
+        log_rule_trigger('no_yard_large_high_energy')
         total_score += 20
         triggered_rules.append({
             'rule_name': 'No Yard + Large High-Energy Dog',
@@ -250,6 +290,7 @@ def calculate_risk(adopter_profile, pet_data):
      'anxious' in (pet_data.get('description') or '').lower())):
 
         
+        log_rule_trigger('full_time_office_separation_anxiety')
         total_score += 25
         triggered_rules.append({
             'rule_name': 'Full-Time Office Work + Separation Anxiety Risk',
@@ -266,6 +307,7 @@ def calculate_risk(adopter_profile, pet_data):
     
     # Rule 8: No Other Pets + "Must Be Only Pet"
     if (adopter_profile.get('has_other_pets') and requires_only_pet(pet_data)):
+        log_rule_trigger('has_pets_must_be_only')
         total_score += 50
         triggered_rules.append({
             'rule_name': 'Has Other Pets + Must Be Only Pet',
@@ -282,6 +324,7 @@ def calculate_risk(adopter_profile, pet_data):
     if (adopter_profile.get('training_commitment') == 'limited' and
         is_stubborn_breed(pet_data)):
         
+        log_rule_trigger('limited_training_stubborn_breed')
         total_score += 20
         triggered_rules.append({
             'rule_name': 'Limited Training Commitment + Strong-Willed Breed',
@@ -299,6 +342,7 @@ def calculate_risk(adopter_profile, pet_data):
     if (adopter_profile.get('experience_level') == 'first_time' and
         pet_data.get('age') == 'Senior'):
         
+        log_rule_trigger('senior_pet_first_time_owner')
         total_score += 15
         triggered_rules.append({
             'rule_name': 'Senior Pet + First-Time Owner',
