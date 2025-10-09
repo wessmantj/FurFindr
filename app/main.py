@@ -12,8 +12,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src.db_helper import DatabaseHelper
 from src.risk_engine import calculate_risk, rule_trigger_log, get_rule_trigger_stats
 from src.adopter_profile import create_adopter_profile
-from src.welcome_page import show_welcome_page
-from src.app_styling import inject_professional_css, render_app_header, render_pet_card_header, render_metrics_header
 
 # Initialize database helper
 
@@ -39,10 +37,11 @@ def get_pets_with_risk_scores(adopter_profile, limit=20):
     conn = db_helper.get_connection()
     cursor = conn.cursor()
     
-    # Get all adoptable pets including URL
-    query = "SELECT id, name, type, species, breed, age, size, gender, description, url FROM animals WHERE status = 'adoptable'"
+    # Get all adoptable pets
+    query = "SELECT id, name, type, species, breed, age, size, gender, description FROM animals WHERE status = 'adoptable'"
     cursor.execute(query)
     rows = cursor.fetchall()
+    conn.close()
     
     pets_with_risk = []
     for row in rows:
@@ -55,21 +54,14 @@ def get_pets_with_risk_scores(adopter_profile, limit=20):
             'age': row[5],
             'size': row[6],
             'gender': row[7],
-            'description': row[8],
-            'url': row[9]
+            'description': row[8]
         }
         
-        # Get photo URL for this pet
-        cursor.execute('SELECT photo_url FROM photos WHERE animal_id = ? LIMIT 1', (pet['id'],))
-        photo_result = cursor.fetchone()
-        pet['photo_url'] = photo_result[0] if photo_result else None
         # Calculate risk for this pet
         risk_result = calculate_risk(adopter_profile, pet)
         pet['risk_result'] = risk_result
         
         pets_with_risk.append(pet)
-    
-    conn.close()
     
     # Sort by risk score (low to high)
     pets_with_risk.sort(key=lambda x: x['risk_result']['risk_score'])
@@ -174,113 +166,107 @@ def get_risk_badge_color(risk_level):
     return colors.get(risk_level, '#6b7280')  # Default gray
 
 def display_pet_card(pet):
-    """Display a compact pet card with action buttons at top"""
+    """Display a single pet card in Tinder style"""
     if not pet:
         return
     
     risk_result = pet['risk_result']
+    badge_color = get_risk_badge_color(risk_result['risk_level'])
     
-    # Use container to prevent extra spacing
+    # Main pet card container
     with st.container():
-        # Display photo if available, otherwise show placeholder
-        if pet.get('photo_url'):
-            st.image(pet['photo_url'], width=600)
-        else:
-            # No image placeholder
-            st.markdown("""
+        st.markdown(f"""
+        <div style="
+            border: 2px solid #e5e7eb;
+            border-radius: 16px;
+            padding: 24px;
+            margin: 16px 0;
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        ">
+        """, unsafe_allow_html=True)
+        
+        # Pet name and risk badge
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            # Make pet name highly visible
+            st.markdown(f"<h2 style='margin: 0; color: #0b84ff; text-shadow: 0 1px 0 rgba(0,0,0,0.05);'>{pet['name']}</h2>", unsafe_allow_html=True)
+        with col2:
+            st.markdown(f"""
             <div style="
-                height: 300px;
-                width: 100%;
-                background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
-                border-radius: 8px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                color: #94a3b8;
-                font-size: 1.2rem;
-                font-weight: 500;
-                border: 2px dashed #cbd5e0;
-                margin: 0;
+                background-color: {badge_color};
+                color: white;
+                padding: 8px 16px;
+                border-radius: 20px;
+                font-weight: bold;
+                text-align: center;
+                font-size: 14px;
             ">
-                No Image Available
+                {risk_result['risk_level']} Risk
             </div>
             """, unsafe_allow_html=True)
-        st.markdown("")
         
-        # Pet name and risk badge using professional styling
-        render_pet_card_header(pet['name'], risk_result['risk_level'])
-    
-        # Quick info row
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.markdown(f"**{pet['species']} • {pet['age']}**")
-        with col2:
-            st.markdown(f"**{pet['size']} • {pet['gender']}**")
-        with col3:
-            st.markdown(f"**Match: {100 - risk_result['risk_score']}/100**")
+        # Data confidence badge
+        confidence = 'high' if pet.get('breed') and pet.get('description') else 'medium' if pet.get('breed') else 'low'
+        show_data_confidence_badge(confidence)
         
-        st.markdown("")
+        st.markdown("---")
         
-        # ACTION BUTTONS AT TOP - Most important actions
-        col1, col2, col3 = st.columns([1, 1, 1])
+        # Pet details in a clean layout
+        col1, col2 = st.columns(2)
         
         with col1:
-            if st.button("❤️ Like", key=f"like_{pet['id']}", type="primary", use_container_width=True):
-                like_pet(pet)
-                st.rerun()
+            st.markdown(f"**Breed:** {pet['breed']}")
+            st.markdown(f"**Age:** {pet['age']}")
+            st.markdown(f"**Size:** {pet['size']}")
         
         with col2:
-            if st.button("❌ Pass", key=f"pass_{pet['id']}", type="secondary", use_container_width=True):
-                pass_pet(pet)
-                st.rerun()
+            st.markdown(f"**Gender:** {pet['gender']}")
+            st.markdown(f"**Species:** {pet['species']}")
+            st.markdown(f"**Compatibility:** {100 - risk_result['risk_score']}/100")
         
-        with col3:
-            if pet.get('url'):
-                st.link_button("🔗 View Listing", pet['url'], use_container_width=True)
-    
-        # Collapsible detailed information
-        with st.expander("📝 View Full Details", expanded=False):
-            # Data confidence badge
-            confidence = 'high' if pet.get('breed') and pet.get('description') else 'medium' if pet.get('breed') else 'low'
-            show_data_confidence_badge(confidence)
-            
-            st.markdown("---")
-            
-            # Detailed pet info
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.markdown(f"**Breed:** {pet['breed']}")
-                st.markdown(f"**Age:** {pet['age']}")
-                st.markdown(f"**Size:** {pet['size']}")
-            
-            with col2:
-                st.markdown(f"**Gender:** {pet['gender']}")
-                st.markdown(f"**Species:** {pet['species']}")
-                st.markdown(f"**Compatibility:** {100 - risk_result['risk_score']}/100")
-            
-            st.markdown("---")
-            
-            # Risk summary
-            st.markdown(f"**Match Summary:** {risk_result['summary']}")
-            
-            # Show concerns if any
-            if risk_result['triggered_rules']:
-                st.markdown("")
-                st.markdown(f"**⚠ {len(risk_result['triggered_rules'])} Important Considerations:**")
+        # Risk summary
+        st.markdown(f"**Match Summary:** {risk_result['summary']}")
+        
+        # Show top concerns if any
+        if risk_result['triggered_rules']:
+            with st.expander(f"⚠️ {len(risk_result['triggered_rules'])} Important Considerations"):
                 for i, rule in enumerate(risk_result['triggered_rules'][:3]):  # Show top 3
-                    st.markdown(f"**{i+1}. {rule['rule_name']}**")
+                    st.markdown(f"**{rule['rule_name']}**")
                     st.markdown(f"_{rule['concern']}_")
                     st.markdown("**What to do:**")
                     for guidance in rule['guidance'][:2]:  # Show first 2 guidance items
                         st.markdown(f"• {guidance}")
                     if i < len(risk_result['triggered_rules'][:3]) - 1:
-                        st.markdown("")
-            else:
-                st.success("✅ Great match! No major concerns identified.")
+                        st.markdown("---")
+        else:
+            st.success("✅ Great match! No major concerns identified.")
+        
+        st.markdown("</div>", unsafe_allow_html=True)
 
-
-# Old show_welcome_page() function removed - now using professional version from src/welcome_page.py
+def show_tutorial():
+    """Show tutorial for new users"""
+    st.markdown("""
+    ## 🎯 Welcome to FurFindr!
+    
+    **How to find your perfect pet match:**
+    
+    1. **Create Your Profile** - Fill out the sidebar to help us understand your household
+    2. **Browse Pets** - Swipe through pets sorted by compatibility (best matches first)
+    3. **Take Action** - Use the buttons below each pet card to:
+       - 🐾 **Adopt** - Save pets you're interested in
+       - ❌ **Pass** - Skip pets that aren't a good fit
+       - ↩️ **Undo** - Change your mind and return to previous pet
+    4. **Review Favorites** - Check your saved pets in the sidebar
+    
+    **The Risk Assessment** - it helps identify potential challenges before adoption, 
+    giving you the best chance for a successful, long-term match!
+    """)
+    
+    if st.button("Lets Start!", type="primary"):
+        st.session_state.tutorial_completed = True
+        st.rerun()
 
 def load_metrics_data():
     """Load data for metrics dashboard"""
@@ -304,8 +290,9 @@ def load_metrics_data():
     return df, searches_count
 
 def show_metrics_dashboard(df, searches_count, adopter_profile=None):
-    """Display metrics dashboard with professional styling"""
-    render_metrics_header("Adoption Inventory Insights")
+    """Display metrics dashboard"""
+    st.markdown("---")
+    st.subheader("📊 Adoption Inventory Insight")
     
     col1, col2, col3, col4 = st.columns(4)
     
@@ -343,14 +330,14 @@ def show_metrics_dashboard(df, searches_count, adopter_profile=None):
         col1, col2 = st.columns(2)
         
         with col1:
-            st.subheader("By Species")
+            st.subheader("By Species 🐶🐱")
             species_counts = df['species'].value_counts()
             for species, count in species_counts.items():
                 pct = (count / total * 100)
                 st.write(f"**{species}:** {count} ({pct:.1f}%)")
         
         with col2:
-            st.subheader("By Age")
+            st.subheader("By Age 📅")
             age_counts = df['age'].value_counts()
             for age, count in age_counts.items():
                 pct = (count / total * 100)
@@ -358,7 +345,7 @@ def show_metrics_dashboard(df, searches_count, adopter_profile=None):
         
         # Size distribution
         if 'size' in df.columns:
-            st.subheader("By Size")
+            st.subheader("By Size 📏")
             size_counts = df['size'].value_counts()
             for size, count in size_counts.items():
                 pct = (count / total * 100)
@@ -367,7 +354,7 @@ def show_metrics_dashboard(df, searches_count, adopter_profile=None):
     # Personalized insights based on adopter profile
     if adopter_profile:
         st.markdown("---")
-        st.subheader("Personalized Insights")
+        st.subheader("Personalized Insights 🎯")
         
         # Calculate compatibility for all pets
         compatible_pets = []
@@ -415,7 +402,7 @@ def show_rule_analytics():
         return
     
     st.markdown("---")
-    st.subheader("Most Common Risk Factors")
+    st.subheader("Most Common Risk Factors ⚠️")
     
     # Count rule triggers
     rule_counts = {}
@@ -453,7 +440,7 @@ def show_rule_analytics():
 def show_disclaimers_and_resources():
     """Display ethical disclaimers and professional resources"""
     
-    with st.expander("Important: About Risk Guidance", expanded=False):
+    with st.expander("ℹ️ Important: About Risk Guidance", expanded=False):
         st.markdown("""
         **Risk scores are guidance tools, not behavioral guarantees.**
         
@@ -479,22 +466,16 @@ def show_data_confidence_badge(confidence):
     else:
         st.info("Limited Data - Visit shelter for details")
 
-st.set_page_config(
-    page_title="FurFindr - Smart Pet Adoption Matching", 
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+st.set_page_config(page_title="FurFinder - Your Smart Matched Pet Adoption", layout="wide")
 
-# Inject professional CSS
-inject_professional_css()
+# Main title
+st.title("FurFinder 🐾")
+st.subheader("Find your perfect pet match with smart compatibility assessment")
 
 # Check if user needs tutorial
 if not st.session_state.tutorial_completed:
-    show_welcome_page()
+    show_tutorial()
     st.stop()
-
-# Render professional header
-render_app_header()
 
 # Sidebar for adopter profile and favorites
 st.sidebar.header("Your Household Profile")
@@ -605,14 +586,15 @@ if submit:
 
 # Favorites section in sidebar
 st.sidebar.markdown("---")
-st.sidebar.header("Your Favorites")
+st.sidebar.header("Your Favorites 💖")
 
 if st.session_state.liked_pets:
     st.sidebar.write(f"You've liked {len(st.session_state.liked_pets)} pets:")
 
     for i, pet in enumerate(st.session_state.liked_pets[-5:]):  # Show last 5
+        # Expander label does not support raw HTML, so use a generic label and render styled name inside
         with st.sidebar.expander("Favorite pet"):
-            st.markdown(f"<div style='font-size:16px; font-weight:700; color:var(--text-color)'>{pet['name']}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='font-size:16px; font-weight:700; color:#0b84ff'>{pet['name']}</div>", unsafe_allow_html=True)
             st.write(f"({pet['breed']})")
             st.write(f"**Risk Level:** {pet['risk_result']['risk_level']}")
             st.write(f"**Compatibility:** {100 - pet['risk_result']['risk_score']}/100")
@@ -622,10 +604,6 @@ if st.session_state.liked_pets:
                 st.write(f"**Concerns:** {len(pet['risk_result']['triggered_rules'])}")
             else:
                 st.success("Great match!")
-            
-            # Add view listing link
-            if pet.get('url'):
-                st.markdown(f"[View on PetFinder]({pet['url']})")
     
     if len(st.session_state.liked_pets) > 5:
         st.sidebar.caption(f"... and {len(st.session_state.liked_pets) - 5} more")
@@ -636,10 +614,10 @@ if st.session_state.liked_pets:
     
     # Download options
     st.sidebar.markdown("---")
-    st.sidebar.subheader("Download Options")
+    st.sidebar.subheader("📥 Download Options")
     
     # Download comprehensive report
-    if st.sidebar.button("Download Complete Report", use_container_width=True, type="primary"):
+    if st.sidebar.button("📊 Download Complete Report", use_container_width=True, type="primary"):
         comprehensive_data = {
             "furfindr_report": {
                 "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -689,7 +667,7 @@ if st.session_state.liked_pets:
     col1, col2 = st.sidebar.columns(2)
     
     with col1:
-        if st.button("Profile", use_container_width=True):
+        if st.button("📋 Profile", use_container_width=True):
             profile_data = {
                 "adopter_profile": st.session_state.adopter_profile,
                 "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -711,7 +689,7 @@ if st.session_state.liked_pets:
             )
     
     with col2:
-        if st.button("Favorites", use_container_width=True):
+        if st.button("💖 Favorites", use_container_width=True):
             if st.session_state.liked_pets:
                 favorites_data = {
                     "favorites": [
@@ -759,6 +737,10 @@ else:
 if 'adopter_profile' not in st.session_state:
     st.session_state.adopter_profile = create_adopter_profile()
 
+# Load and show metrics
+df_metrics, searches_count = load_metrics_data()
+show_metrics_dashboard(df_metrics, searches_count, st.session_state.adopter_profile)
+
 # Main Tinder-style interface
 # Load pet queue if needed
 load_pet_queue(st.session_state.adopter_profile, 20)
@@ -777,18 +759,33 @@ if current_pet:
     st.progress(progress)
     st.caption(f"Pet {current_index + 1} of {total_pets} • {remaining_pets} remaining")
     
-    # Main pet card with action buttons at top
+    # Main pet card
     display_pet_card(current_pet)
     
     # Show disclaimers and resources
     show_disclaimers_and_resources()
+    
+    # Action buttons
+    st.markdown("---")
+    
+    col1, col2, col3, col4, col5 = st.columns([1, 2, 1, 2, 1])
+    
+    with col2:
+        if st.button("Pass ❌", type="secondary", use_container_width=True):
+            pass_pet(current_pet)
+            st.rerun()
+    
+    with col4:
+        if st.button("Adopt 💖", type="primary", use_container_width=True):
+            like_pet(current_pet)
+            st.rerun()
     
     # Undo button (only show if there was a recent action)
     if st.session_state.last_action:
         st.markdown("---")
         col1, col2, col3 = st.columns([1, 1, 1])
         with col2:
-            if st.button("Undo Last Action", type="secondary"):
+            if st.button("Undo Last Action ↩️", type="secondary"):
                 undo_last_action()
                 st.rerun()
     
@@ -807,16 +804,12 @@ else:
     if total_pets == 0:
         st.info("No pets available. Please check back later!")
     else:
-        st.success("You've reviewed all available pets!")
+        st.success("🎉 You've reviewed all available pets!")
         st.write(f"You liked {len(st.session_state.liked_pets)} pets and passed on {len(st.session_state.passed_pets)} pets.")
         
-        if st.button("Start Over", type="primary"):
+        if st.button("🔄 Start Over", type="primary"):
             st.session_state.current_pet_index = 0
             st.session_state.pet_queue = []
             st.session_state.liked_pets = []
             st.session_state.passed_pets = []
             st.rerun()
-
-# Load and show metrics AFTER the pet browsing section
-df_metrics, searches_count = load_metrics_data()
-show_metrics_dashboard(df_metrics, searches_count, st.session_state.adopter_profile)
