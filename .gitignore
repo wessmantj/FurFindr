@@ -6,3 +6,9 @@ data/raw/*
 data/processed/*
 .DS_Store
 *.log
+
+.streamlit/secrets.toml
+.env
+db/app.db
+venv/
+__pycache__/

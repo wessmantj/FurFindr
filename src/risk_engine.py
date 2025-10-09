@@ -2,6 +2,22 @@
 Retention-Risk Engine
 Evaluates adopter-pet compatibility based on research-backed friction patterns
 """
+import streamlit
+import os
+
+def get_api_credentials():
+    """Get API credentials from secrets or environment"""
+    try:
+        # Try Streamlit secrets first (for deployed app)
+        api_key = st.secrets["petfinder"]["api_key"]
+        api_secret = st.secrets["petfinder"]["api_secret"]
+    except (FileNotFoundError, KeyError):
+        # Fall back to environment variables (for local dev)
+        api_key = os.getenv("PETFINDER_API_KEY")
+        api_secret = os.getenv("PETFINDER_API_SECRET")
+    
+    return api_key, api_secret
+
 from .data_validation import validate_animal_data, get_conservative_defaults
 from .db_helper import DatabaseHelper
 from datetime import datetime
