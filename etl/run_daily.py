@@ -75,7 +75,7 @@ def fetch_and_store_animals(zip_codes, species_list=None, limit_per_query=100):
 
 if __name__ == "__main__":
     # Configure your search
-    ZIP_CODES = ["10001", "02703", "02108"]  # NYC, Boston, Attleboro
+    ZIP_CODES = ["10001", "90210", "60601"] 
     SPECIES = ["dog", "cat", "rabbit"]  # Types of pets to fetch
     
     fetch_and_store_animals(ZIP_CODES, SPECIES, limit_per_query=20)
