@@ -34,7 +34,7 @@ if 'last_action' not in st.session_state:
 if 'tutorial_completed' not in st.session_state:
     st.session_state.tutorial_completed = False
 
-def get_pets_with_risk_scores(adopter_profile, limit=20):
+def get_pets_with_risk_scores(adopter_profile, limit=None):
     """Get pets sorted by risk level (low to high) with risk scores calculated"""
     try:
         conn = db_helper.get_connection()
@@ -76,15 +76,18 @@ def get_pets_with_risk_scores(adopter_profile, limit=20):
         # Sort by risk score (low to high)
         pets_with_risk.sort(key=lambda x: x['risk_result']['risk_score'])
         
-        return pets_with_risk[:limit]
+        # Return all pets if no limit, otherwise limited
+        if limit:
+            return pets_with_risk[:limit]
+        return pets_with_risk
     except Exception as e:
         st.error(f"Error loading pets: {str(e)}")
         return []
 
-def load_pet_queue(adopter_profile, batch_size=20):
-    """Load a batch of pets into the queue"""
+def load_pet_queue(adopter_profile):
+    """Load ALL pets into the queue"""
     if not st.session_state.pet_queue:
-        st.session_state.pet_queue = get_pets_with_risk_scores(adopter_profile, batch_size)
+        st.session_state.pet_queue = get_pets_with_risk_scores(adopter_profile)  # No limit = all pets
     return st.session_state.pet_queue
 
 def get_current_pet():
@@ -645,7 +648,10 @@ if submit:
         noise_tolerance=noise_tolerance,
         training_commitment=training_commitment
     )
+    st.session_state.profile_created = True  # Mark profile as created
+    st.session_state.pet_queue = []  # Reset pet queue to recalculate with new profile
     st.sidebar.success("✓ Profile saved!")
+    st.rerun()  # Reload to show pets
 
 # Favorites section in sidebar
 st.sidebar.markdown("---")
@@ -800,9 +806,18 @@ else:
 if 'adopter_profile' not in st.session_state:
     st.session_state.adopter_profile = create_adopter_profile()
 
+# Check if user has created a profile (not just using default)
+if 'profile_created' not in st.session_state:
+    st.session_state.profile_created = False
+
+# Show message if no profile created yet
+if not st.session_state.profile_created:
+    st.info("👈 Please create your household profile in the sidebar to see personalized pet recommendations!")
+    st.stop()
+
 # Main Tinder-style interface
 # Load pet queue if needed
-load_pet_queue(st.session_state.adopter_profile, 20)
+load_pet_queue(st.session_state.adopter_profile)
 
 # Get current pet
 current_pet = get_current_pet()

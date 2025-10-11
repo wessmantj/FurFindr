@@ -2,6 +2,9 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from dotenv import load_dotenv
+load_dotenv()  # Load .env file before importing PetfinderClient
+
 from src.api_client import PetfinderClient
 from src.db_helper import DatabaseHelper
 
@@ -75,7 +78,7 @@ def fetch_and_store_animals(zip_codes, species_list=None, limit_per_query=100):
 
 if __name__ == "__main__":
     # Configure your search
-    ZIP_CODES = ["10001", "90210", "60601"] 
-    SPECIES = ["dog", "cat", "rabbit"]  # Types of pets to fetch
+    ZIP_CODES = ["02790", "02703", "02139"] 
+    SPECIES = ["dog"]  # Focus on dogs for demo - more breed variety
     
-    fetch_and_store_animals(ZIP_CODES, SPECIES, limit_per_query=20)
+    fetch_and_store_animals(ZIP_CODES, SPECIES, limit_per_query=50)

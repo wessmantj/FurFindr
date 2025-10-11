@@ -1,3 +1,6 @@
+from dotenv import load_dotenv
+load_dotenv()  # Load .env file
+
 from src.api_client import PetfinderClient
 
 def main():
@@ -10,7 +13,7 @@ def main():
         
         # Fetch 5 animals near NYC as a test
         print("\nFetching sample animals...")
-        results = client.get_animals(location="10001", limit=5)
+        results = client.get_animals(location="02703", limit=5)
         
         animals = results.get('animals', [])
         print(f"✅ Found {len(animals)} animals\n")
